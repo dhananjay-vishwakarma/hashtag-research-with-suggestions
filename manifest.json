@@ -1,0 +1,19 @@
+{
+  "name": "LinkedIn Hashtag Follower Checker",
+  "version": "1.0",
+  "manifest_version": 3,
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.linkedin.com/feed/hashtag/*"],
+      "js": ["content-script.js"]
+    }
+  ]
+}

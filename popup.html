@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        width: 400px;
+        padding: 15px;
+      }
+      
+      .input-container {
+        display: flex;
+        margin-bottom: 15px;
+      }
+      
+      #hashtags {
+        flex: 1;
+        padding: 8px;
+        margin-right: 10px;
+      }
+      
+      #checkBtn {
+        background-color: #0077b5;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+      }
+      
+      #checkBtn:hover {
+        background-color: #005582;
+      }
+      
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+      }
+      
+      th, td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      
+      th {
+        background-color: #f2f2f2;
+      }
+      
+      #loading {
+        display: none;
+        margin-top: 10px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>LinkedIn Hashtag Follower Checker</h2>
+    <div class="input-container">
+      <input id="hashtags" placeholder="Enter hashtags separated by commas" />
+      <button id="checkBtn">Check</button>
+    </div>
+    <div id="loading">Checking hashtags... Please wait...</div>
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>Hashtag</th>
+          <th>Followers</th>
+        </tr>
+      </thead>
+      <tbody id="results">
+        <!-- Results will be inserted here -->
+      </tbody>
+    </table>
+    <script src="popup.js"></script>
+  </body>
+</html>
