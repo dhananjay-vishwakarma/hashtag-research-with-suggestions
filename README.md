@@ -77,5 +77,3 @@ Planned features for upcoming releases:
 - Custom hashtag grouping and saving
 
 ---
-
-Developed by [Your Name/Company] | © 2025
