@@ -8,7 +8,14 @@
     "tabs"
   ],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": "ext-logo.png"
+  },
+  "icons": {
+    "16": "ext-logo.png",
+    "32": "ext-logo.png",
+    "48": "ext-logo.png",
+    "128": "ext-logo.png"
   },
   "content_scripts": [
     {
