@@ -52,6 +52,38 @@
         margin-top: 10px;
         color: #666;
       }
+      
+      .suggestions-container {
+        margin-top: 20px;
+        border-top: 1px solid #ddd;
+        padding-top: 15px;
+      }
+      
+      .suggestion-item {
+        display: inline-block;
+        background-color: #f0f7ff;
+        border: 1px solid #cce5ff;
+        border-radius: 15px;
+        padding: 5px 10px;
+        margin: 5px;
+        cursor: pointer;
+      }
+      
+      .suggestion-item:hover {
+        background-color: #d4e5ff;
+      }
+      
+      .follower-count {
+        font-size: 0.8em;
+        color: #666;
+        margin-left: 5px;
+      }
+      
+      #suggestionsLoading {
+        display: none;
+        margin-top: 10px;
+        color: #666;
+      }
     </style>
   </head>
   <body>
@@ -72,6 +104,16 @@
         <!-- Results will be inserted here -->
       </tbody>
     </table>
+    
+    <div class="suggestions-container">
+      <h3>Suggested Hashtags</h3>
+      <p>Click on a suggestion to add it to your search</p>
+      <div id="suggestionsLoading">Finding relevant suggestions...</div>
+      <div id="suggestions">
+        <!-- Suggestions will be inserted here -->
+      </div>
+    </div>
+    
     <script src="popup.js"></script>
   </body>
 </html>
