@@ -1,15 +1,113 @@
 // Global variable to store hashtag data and suggestions
 let hashtagData = [];
 let suggestedHashtags = [];
+let searchHistory = [];
+let isSearchInProgress = false;
+
+// Load saved data when popup opens
+document.addEventListener('DOMContentLoaded', () => {
+  loadSavedData();
+  
+  // Add history button navigation
+  document.getElementById('historyBtn').addEventListener('click', () => {
+    window.location.href = 'history.html';
+  });
+});
+
+// Load data from local storage
+function loadSavedData() {
+  chrome.storage.local.get(['hashtagData', 'suggestedHashtags', 'searchHistory'], (result) => {
+    if (result.hashtagData) hashtagData = result.hashtagData;
+    if (result.suggestedHashtags) suggestedHashtags = result.suggestedHashtags;
+    if (result.searchHistory) searchHistory = result.searchHistory;
+    
+    // If we have hashtag data, also display the results and suggestions
+    if (hashtagData.length > 0) {
+      displayStoredResults();
+      generateSuggestions();
+    }
+  });
+}
+
+// Save data to local storage
+function saveDataToLocalStorage() {
+  chrome.storage.local.set({
+    hashtagData: hashtagData,
+    suggestedHashtags: suggestedHashtags,
+    searchHistory: searchHistory
+  }, () => {
+    console.log('Data saved to local storage');
+  });
+}
+
+// Save detailed search history with hashtags, dates, and suggestions
+function saveDetailedHistory(query, hashtags) {
+  chrome.storage.local.get(['detailedSearchHistory'], (result) => {
+    let detailedHistory = result.detailedSearchHistory || [];
+    
+    // Create new history item with current date and hashtag data
+    const historyItem = {
+      query: query,
+      timestamp: new Date().toISOString(),
+      hashtags: hashtags.map(hash => {
+        const matchingData = hashtagData.find(h => h.hashtag.toLowerCase() === hash.toLowerCase());
+        return {
+          hashtag: hash,
+          followers: matchingData ? matchingData.followers : null,
+          date: new Date().toISOString()
+        };
+      }),
+      suggestedHashtags: suggestedHashtags.slice(0, 15) // Store top 15 suggestions
+    };
+    
+    // Add to history (avoid duplicates with same timestamp)
+    if (!detailedHistory.some(item => item.timestamp === historyItem.timestamp)) {
+      detailedHistory.unshift(historyItem);
+      
+      // Limit history to 50 entries
+      if (detailedHistory.length > 50) {
+        detailedHistory = detailedHistory.slice(0, 50);
+      }
+      
+      // Save updated history
+      chrome.storage.local.set({ 'detailedSearchHistory': detailedHistory }, () => {
+        console.log('Detailed history saved');
+      });
+    }
+  });
+}
 
 document.getElementById("checkBtn").addEventListener("click", async () => {
+  // Prevent multiple clicks while a search is in progress
+  if (isSearchInProgress) {
+    console.log('Search already in progress. Please wait...');
+    return;
+  }
+  
   const input = document.getElementById("hashtags").value;
   if (!input.trim()) return;
+  
+  // Set flag to prevent multiple searches
+  isSearchInProgress = true;
   
   // Parse hashtags and clean them
   const hashtags = input.split(",")
     .map(h => h.trim())
     .filter(h => h);
+  
+  // Add search to history
+  const searchItem = {
+    query: input,
+    hashtags: hashtags,
+    timestamp: new Date().toISOString()
+  };
+  
+  // Add to history (avoid duplicates)
+  if (!searchHistory.some(item => item.query === input)) {
+    searchHistory.unshift(searchItem); // Add to beginning of array
+    if (searchHistory.length > 20) searchHistory.pop(); // Limit history to 20 entries
+    saveDataToLocalStorage();
+  }
   
   const resultsElement = document.getElementById("results");
   const loadingElement = document.getElementById("loading");
@@ -28,10 +126,17 @@ document.getElementById("checkBtn").addEventListener("click", async () => {
   // Track hashtags we're checking and their original capitalization
   const hashtagMap = new Map();
   
+  // Track how many hashtags we're processing
+  const totalHashtags = hashtags.length;
+  let processedHashtags = 0;
+  
   // Process each hashtag
   for (const tag of hashtags) {
     // Skip empty tags
-    if (!tag) continue;
+    if (!tag) {
+      processedHashtags++;
+      continue;
+    }
     
     // Store original capitalization for display
     hashtagMap.set(tag.toLowerCase(), tag);
@@ -57,6 +162,27 @@ document.getElementById("checkBtn").addEventListener("click", async () => {
     });
   }
 });
+
+// Display stored results without making new requests
+function displayStoredResults() {
+  const resultsElement = document.getElementById("results");
+  resultsElement.innerHTML = "";
+  
+  // Display each hashtag and its follower count
+  hashtagData.forEach(data => {
+    const row = document.createElement("tr");
+    const hashtagCell = document.createElement("td");
+    const followersCell = document.createElement("td");
+    
+    hashtagCell.textContent = `#${data.hashtag}`;
+    hashtagCell.dataset.hashtag = data.hashtag.toLowerCase();
+    followersCell.textContent = data.followers || "Unknown";
+    
+    row.appendChild(hashtagCell);
+    row.appendChild(followersCell);
+    resultsElement.appendChild(row);
+  });
+}
 
 // When content script sends back follower count and related hashtags
 chrome.runtime.onMessage.addListener((message, sender) => {
@@ -96,10 +222,14 @@ chrome.runtime.onMessage.addListener((message, sender) => {
       hashtagData.push({
         hashtag: receivedHashtag,
         followers: message.followers,
-        relatedHashtags: message.relatedHashtags || []
+        relatedHashtags: message.relatedHashtags || [],
+        date: new Date().toISOString()
       });
       
       console.log(`Received ${message.relatedHashtags?.length || 0} related hashtags for #${receivedHashtag}`);
+      
+      // Save updated data to local storage
+      saveDataToLocalStorage();
     } else {
       console.log("No matching row found for hashtag:", message.hashtag);
     }
@@ -120,6 +250,14 @@ chrome.runtime.onMessage.addListener((message, sender) => {
       
       // Generate suggestions based on collected data
       generateSuggestions();
+      
+      // Reset search flag
+      isSearchInProgress = false;
+      
+      // Save detailed search history with hashtag data and suggestions
+      const input = document.getElementById("hashtags").value;
+      const hashtags = input.split(",").map(h => h.trim()).filter(h => h);
+      saveDetailedHistory(input, hashtags);
     }
   } else if (message.type === "CLOSE_TAB" && sender.tab) {
     chrome.tabs.remove(sender.tab.id);
@@ -265,6 +403,9 @@ function generateSuggestions() {
   if (suggestedHashtags.length === 0) {
     suggestionsElement.innerHTML = "<p>No suggested hashtags found</p>";
   }
+  
+  // Save suggestions to local storage
+  saveDataToLocalStorage();
 }
 
 // Helper function to display a group of suggestions with a heading

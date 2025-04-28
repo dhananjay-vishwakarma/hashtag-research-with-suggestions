@@ -13,6 +13,8 @@ LinkedIn Hashtag Follower Checker is a powerful Chrome extension that helps cont
 - **Categorized Results**: View suggested hashtags organized by follower count ranges
 - **One-Click Addition**: Click on suggested hashtags to easily add them to your search
 - **Automated Research**: Works in the background without disrupting your workflow
+- **Search History**: Automatically saves your previous searches for easy reference
+- **Persistent Data**: Retains hashtag research even if you close or switch tabs
 
 ## How It Works
 
@@ -42,6 +44,7 @@ The extension uses multiple sophisticated methods to extract and analyze hashtag
 3. **Link Pattern Recognition**: Identifies hashtag relationships in LinkedIn's page structure
 4. **HTML Pattern Matching**: Uses regex and pattern matching to identify hashtag connections
 5. **Intelligent Fallback System**: Provides industry-relevant suggestions even when direct extraction fails
+6. **Local Storage**: Saves search history and results for persistent access across browser sessions
 
 ## Installation
 
@@ -58,14 +61,17 @@ The extension uses multiple sophisticated methods to extract and analyze hashtag
 - Click on suggested hashtags to add them to your research
 - LinkedIn limits posts to 30 hashtags; focus on quality over quantity
 - Industry-specific hashtags often perform better than general ones
+- Browse your search history to quickly access previous research
 
 ## Privacy & Permissions
 
 This extension:
 - Only accesses LinkedIn hashtag pages
-- Does not collect or store any personal data
+- Stores search data locally in your browser only
+- Does not collect or transmit any personal data
 - Runs entirely in your browser
 - Requires tabs permission to check hashtags in background tabs
+- Requires storage permission to save your search history locally
 
 ## Future Enhancements
 
@@ -75,5 +81,6 @@ Planned features for upcoming releases:
 - Integration with content planning tools
 - Hashtag trend analysis
 - Custom hashtag grouping and saving
+- Advanced search history filtering and organization
 
 ---

@@ -8,6 +8,31 @@
         padding: 15px;
       }
       
+      .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      
+      .action-buttons {
+        display: flex;
+        gap: 10px;
+      }
+      
+      #historyBtn {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      
+      #historyBtn:hover {
+        background-color: #3e8e41;
+      }
+      
       .input-container {
         display: flex;
         margin-bottom: 15px;
@@ -29,6 +54,61 @@
       
       #checkBtn:hover {
         background-color: #005582;
+      }
+      
+      /* History styles */
+      .history-container {
+        margin-bottom: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 10px;
+        background-color: #f9f9f9;
+      }
+      
+      .history-container h3 {
+        margin-top: 0;
+        font-size: 14px;
+        color: #666;
+      }
+      
+      .history-item {
+        padding: 6px 8px;
+        background-color: #fff;
+        border-radius: 4px;
+        margin-bottom: 6px;
+        cursor: pointer;
+        border-left: 3px solid #0077b5;
+        display: flex;
+        justify-content: space-between;
+      }
+      
+      .history-item:hover {
+        background-color: #f0f7ff;
+      }
+      
+      .history-query {
+        font-weight: bold;
+        color: #333;
+      }
+      
+      .history-date {
+        font-size: 0.8em;
+        color: #777;
+      }
+      
+      .secondary-btn {
+        background-color: #e0e0e0;
+        color: #333;
+        border: none;
+        padding: 6px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-top: 8px;
+        font-size: 12px;
+      }
+      
+      .secondary-btn:hover {
+        background-color: #ccc;
       }
       
       table {
@@ -87,7 +167,13 @@
     </style>
   </head>
   <body>
-    <h2>LinkedIn Hashtag Follower Checker</h2>
+    <div class="header-container">
+      <h2>LinkedIn Hashtag Follower Checker</h2>
+      <div class="action-buttons">
+        <button id="historyBtn">View History</button>
+      </div>
+    </div>
+    
     <div class="input-container">
       <input id="hashtags" placeholder="Enter hashtags separated by commas" />
       <button id="checkBtn">Check</button>

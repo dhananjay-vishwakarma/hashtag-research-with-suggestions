@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hashtag Research History</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        width: 600px;
+        padding: 20px;
+      }
+      
+      h2 {
+        color: #0077b5;
+        margin-bottom: 20px;
+      }
+      
+      .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      
+      #backBtn {
+        background-color: #0077b5;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      
+      #backBtn:hover {
+        background-color: #005582;
+      }
+      
+      .search-history-container {
+        margin-bottom: 30px;
+      }
+      
+      .search-item {
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        background-color: #f9f9f9;
+      }
+      
+      .search-header {
+        padding: 10px 15px;
+        background-color: #f0f7ff;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+      }
+      
+      .search-header:hover {
+        background-color: #e0f0ff;
+      }
+      
+      .search-date {
+        font-size: 0.8em;
+        color: #666;
+      }
+      
+      .search-query {
+        font-weight: bold;
+        color: #0077b5;
+      }
+      
+      .search-details {
+        padding: 0 15px;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+      
+      .search-details.expanded {
+        max-height: 1000px;
+        padding: 15px;
+      }
+      
+      .hashtag-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+      }
+      
+      .hashtag-table th,
+      .hashtag-table td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      
+      .hashtag-table th {
+        background-color: #f2f2f2;
+      }
+      
+      .suggested-tags {
+        margin-top: 15px;
+        border-top: 1px solid #ddd;
+        padding-top: 10px;
+      }
+      
+      .suggested-tag {
+        display: inline-block;
+        background-color: #f0f7ff;
+        border: 1px solid #cce5ff;
+        border-radius: 15px;
+        padding: 5px 10px;
+        margin: 5px;
+      }
+      
+      .follower-count {
+        font-size: 0.8em;
+        color: #666;
+        margin-left: 5px;
+      }
+      
+      .no-history {
+        color: #666;
+        text-align: center;
+        padding: 30px;
+        font-style: italic;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+      }
+      
+      .clear-btn {
+        background-color: #e53935;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-top: 15px;
+      }
+      
+      .clear-btn:hover {
+        background-color: #c62828;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-container">
+      <h2>Hashtag Research History</h2>
+      <button id="backBtn">Back to Search</button>
+    </div>
+    
+    <div id="historyContainer" class="search-history-container">
+      <!-- History items will be dynamically added here -->
+    </div>
+    
+    <button id="clearAllBtn" class="clear-btn">Clear All History</button>
+    
+    <script src="history.js"></script>
+  </body>
+</html>
