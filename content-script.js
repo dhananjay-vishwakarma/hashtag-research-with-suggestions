@@ -107,6 +107,81 @@
       }
       
       // NEW: Extract related hashtags from the page with improved methods
+      function extractRelatedHashtagsRobust(currentHashtag) {
+        console.log(`Starting robust hashtag extraction for #${currentHashtag}`);
+        const relatedTags = [];
+        currentHashtag = currentHashtag.toLowerCase();
+        
+        try {
+          // Method 1: Extract hashtags from posts and feed content
+          const extractedFromPosts = extractHashtagsFromPosts(currentHashtag);
+          relatedTags.push(...extractedFromPosts);
+          console.log(`Found ${extractedFromPosts.length} hashtags from posts`);
+          
+          // Method 2: Extract hashtags from sidebar and recommendations
+          const extractedFromSidebar = extractHashtagsFromSidebar(currentHashtag);
+          relatedTags.push(...extractedFromSidebar);
+          console.log(`Found ${extractedFromSidebar.length} hashtags from sidebar`);
+          
+          // Method 3: Extract hashtags from the raw HTML with regex
+          const extractedFromHTML = extractHashtagsFromHTML(currentHashtag);
+          relatedTags.push(...extractedFromHTML);
+          console.log(`Found ${extractedFromHTML.length} hashtags from HTML`);
+          
+          // Method 4: Look for "related hashtags" or similar sections
+          const extractedFromRelatedSections = extractHashtagsFromRelatedSections(currentHashtag);
+          relatedTags.push(...extractedFromRelatedSections);
+          console.log(`Found ${extractedFromRelatedSections.length} hashtags from related sections`);
+          
+          // Method 5: Extract hashtags from all link elements
+          const extractedFromLinks = extractHashtagsFromLinks(currentHashtag);
+          relatedTags.push(...extractedFromLinks);
+          console.log(`Found ${extractedFromLinks.length} hashtags from links`);
+          
+          // Method 6: Fallback to industry-related hashtags when nothing is found
+          if (relatedTags.length <= 3) { // Only use fallbacks if we found very few real hashtags
+            const fallbackTags = generateFallbackHashtags(currentHashtag);
+            relatedTags.push(...fallbackTags);
+            console.log(`Added ${fallbackTags.length} fallback hashtags`);
+          }
+          
+          // Remove duplicates but preserve the most information-rich version of each tag
+          const tagMap = new Map();
+          
+          relatedTags.forEach(tag => {
+            if (!tag || !tag.hashtag) return;
+            
+            const tagName = tag.hashtag.toLowerCase();
+            
+            // If we already have this tag, only replace if the new one has follower info
+            if (tagMap.has(tagName)) {
+              const existingTag = tagMap.get(tagName);
+              
+              // Keep the entry with follower info
+              if ((!existingTag.followers || existingTag.followers === null) && tag.followers) {
+                tagMap.set(tagName, tag);
+              }
+              
+              // If both have follower info, keep the non-fallback one
+              if (existingTag.isFallback && !tag.isFallback) {
+                tagMap.set(tagName, tag);
+              }
+            } else {
+              tagMap.set(tagName, tag);
+            }
+          });
+          
+          const uniqueTags = Array.from(tagMap.values());
+          
+          console.log(`Total unique hashtags found: ${uniqueTags.length}`);
+          return uniqueTags;
+        } catch (error) {
+          console.error("Error in robust hashtag extraction:", error);
+          return [];
+        }
+      }
+      
+      // Extract related hashtags using the new robust method
       const relatedHashtags = extractRelatedHashtagsRobust(hashtag);
       
       console.log(`Found ${relatedHashtags.length} related hashtags for #${hashtag}`);
@@ -172,16 +247,39 @@ function extractRelatedHashtagsRobust(currentHashtag) {
     console.log(`Found ${extractedFromLinks.length} hashtags from links`);
     
     // Method 6: Fallback to industry-related hashtags when nothing is found
-    if (relatedTags.length === 0) {
+    if (relatedTags.length <= 3) { // Only use fallbacks if we found very few real hashtags
       const fallbackTags = generateFallbackHashtags(currentHashtag);
       relatedTags.push(...fallbackTags);
       console.log(`Added ${fallbackTags.length} fallback hashtags`);
     }
     
-    // Remove duplicates by converting to a Map and back to array
-    const uniqueTags = Array.from(
-      new Map(relatedTags.map(tag => [tag.hashtag, tag])).values()
-    );
+    // Remove duplicates but preserve the most information-rich version of each tag
+    const tagMap = new Map();
+    
+    relatedTags.forEach(tag => {
+      if (!tag || !tag.hashtag) return;
+      
+      const tagName = tag.hashtag.toLowerCase();
+      
+      // If we already have this tag, only replace if the new one has follower info
+      if (tagMap.has(tagName)) {
+        const existingTag = tagMap.get(tagName);
+        
+        // Keep the entry with follower info
+        if ((!existingTag.followers || existingTag.followers === null) && tag.followers) {
+          tagMap.set(tagName, tag);
+        }
+        
+        // If both have follower info, keep the non-fallback one
+        if (existingTag.isFallback && !tag.isFallback) {
+          tagMap.set(tagName, tag);
+        }
+      } else {
+        tagMap.set(tagName, tag);
+      }
+    });
+    
+    const uniqueTags = Array.from(tagMap.values());
     
     console.log(`Total unique hashtags found: ${uniqueTags.length}`);
     return uniqueTags;
@@ -355,7 +453,7 @@ function extractHashtagsFromSidebar(currentHashtag) {
                 });
               }
             }
-          }
+          });
         });
       }
     });

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Auto Commenter Statistics</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      
+      h1 {
+        color: #0077b5;
+        margin-bottom: 20px;
+      }
+      
+      .stats-container {
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      
+      .stat-card {
+        background-color: white;
+        border-radius: 6px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+      
+      .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #0077b5;
+        margin: 10px 0;
+      }
+      
+      .stat-label {
+        color: #555;
+        font-size: 14px;
+      }
+      
+      .comment-history {
+        background-color: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      
+      .comment-item {
+        padding: 15px;
+        border-bottom: 1px solid #eee;
+      }
+      
+      .comment-item:last-child {
+        border-bottom: none;
+      }
+      
+      .comment-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      
+      .comment-author {
+        font-weight: bold;
+      }
+      
+      .comment-date {
+        color: #777;
+        font-size: 12px;
+      }
+      
+      .comment-text {
+        color: #333;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      
+      .token-info {
+        color: #777;
+        font-size: 12px;
+        margin-top: 5px;
+        text-align: right;
+      }
+      
+      .empty-state {
+        text-align: center;
+        padding: 40px 0;
+        color: #777;
+      }
+      
+      .btn {
+        background-color: #0077b5;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      
+      .btn:hover {
+        background-color: #005582;
+      }
+      
+      .btn-secondary {
+        background-color: #f0f0f0;
+        color: #333;
+      }
+      
+      .btn-secondary:hover {
+        background-color: #ddd;
+      }
+      
+      .btn-danger {
+        background-color: #e53935;
+      }
+      
+      .btn-danger:hover {
+        background-color: #c62828;
+      }
+      
+      .btn-container {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Auto Commenter Statistics</h1>
+    
+    <div class="btn-container">
+      <button id="backBtn" class="btn btn-secondary">← Back to Main</button>
+      <button id="refreshBtn" class="btn">Refresh Stats</button>
+      <button id="resetBtn" class="btn btn-danger">Reset Statistics</button>
+    </div>
+    
+    <div class="stats-container">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Comments</div>
+          <div id="totalComments" class="stat-value">0</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-label">Successful Comments</div>
+          <div id="successfulComments" class="stat-value">0</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-label">Failed Comments</div>
+          <div id="failedComments" class="stat-value">0</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-label">Success Rate</div>
+          <div id="successRate" class="stat-value">0%</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-label">Total Token Usage</div>
+          <div id="tokenUsage" class="stat-value">0</div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-label">Last Comment</div>
+          <div id="lastCommented" class="stat-value">Never</div>
+        </div>
+      </div>
+    </div>
+    
+    <h2>Comment History</h2>
+    <div class="comment-history" id="commentHistory">
+      <div class="empty-state" id="emptyState">
+        <p>No comments have been posted yet.</p>
+      </div>
+    </div>
+    
+    <script src="comment-stats-page.js"></script>
+  </body>
+</html>

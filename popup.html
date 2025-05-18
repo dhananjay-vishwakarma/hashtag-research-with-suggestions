@@ -20,6 +20,54 @@
         gap: 10px;
       }
       
+      /* Tabs Navigation */
+      .tabs {
+        display: flex;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      
+      .tab {
+        padding: 10px 20px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s;
+      }
+      
+      .tab.active {
+        border-bottom: 2px solid #0077b5;
+        font-weight: bold;
+      }
+      
+      /* Tab Content */
+      .tab-content {
+        display: none;
+      }
+      
+      .tab-content.active {
+        display: block;
+      }
+      
+      /* Auto Commenter Styles */
+      .form-group {
+        margin-bottom: 15px;
+      }
+      
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      
+      .form-group input[type="text"],
+      .form-group input[type="password"],
+      .form-group textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      
       #historyBtn {
         background-color: #4caf50;
         color: white;
@@ -164,27 +212,51 @@
         margin-top: 10px;
         color: #666;
       }
+      
+      .source-badge {
+        display: inline-block;
+        font-size: 0.7em;
+        background-color: #4caf50;
+        color: white;
+        border-radius: 50%;
+        padding: 1px 3px;
+        margin-left: 4px;
+        vertical-align: top;
+      }
+      
+      .multi-source {
+        background-color: #d0e8ff;
+        border-color: #a0c8ff;
+      }
     </style>
   </head>
   <body>
     <div class="header-container">
-      <h2>LinkedIn Hashtag Follower Checker</h2>
+      <h2>LinkedIn Assistant</h2>
       <div class="action-buttons">
         <button id="historyBtn">View History</button>
       </div>
     </div>
     
-    <div class="input-container">
-      <input id="hashtags" placeholder="Enter hashtags separated by commas" />
-      <button id="checkBtn">Check</button>
+    <!-- Tabs Navigation -->
+    <div class="tabs">
+      <div class="tab active" data-tab="hashtag-checker">Hashtag Checker</div>
+      <div class="tab" data-tab="auto-commenter">Auto Commenter</div>
     </div>
-    <div id="loading">Checking hashtags... Please wait...</div>
-    <table id="resultsTable">
-      <thead>
-        <tr>
-          <th>Hashtag</th>
-          <th>Followers</th>
-        </tr>
+    
+    <!-- Hashtag Checker Tab -->
+    <div id="hashtag-checker-content" class="tab-content active">
+      <div class="input-container">
+        <input id="hashtags" placeholder="Enter hashtags separated by commas" />
+        <button id="checkBtn">Check</button>
+      </div>
+      <div id="loading">Checking hashtags... Please wait...</div>
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>Hashtag</th>
+            <th>Followers</th>
+          </tr>
       </thead>
       <tbody id="results">
         <!-- Results will be inserted here -->
@@ -196,10 +268,93 @@
       <p>Click on a suggestion to add it to your search</p>
       <div id="suggestionsLoading">Finding relevant suggestions...</div>
       <div id="suggestions">
+      </div>
+    </div>
+    </div>
+    
+    <!-- Auto Commenter Tab -->
+    <div id="auto-commenter-content" class="tab-content">
+      <div class="form-group">
+        <label for="apiKey">OpenAI API Key:</label>
+        <input type="password" id="apiKey" placeholder="sk-..." />
+      </div>
+      
+      <div class="form-group">
+        <label for="userSignature">Your Signature (will be added to comments):</label>
+        <input type="text" id="userSignature" placeholder="- John Doe, Digital Marketer" />
+      </div>
+      
+      <div class="form-group">
+        <label for="commentPrompt">Comment Prompt (instruction for ChatGPT):</label>
+        <textarea id="commentPrompt" rows="3" placeholder="Write a professional, thoughtful, and concise comment (maximum 100 words) in response to this LinkedIn post:">Write a professional, thoughtful, and concise comment (maximum 100 words) in response to this LinkedIn post:</textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="modelSelect">AI Model:</label>
+        <select id="modelSelect">
+          <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Faster, cheaper)</option>
+          <option value="gpt-4">GPT-4 (Better quality, more expensive)</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="commentFrequency">Comment Frequency:</label>
+        <select id="commentFrequency">
+          <option value="100">Comment on all posts (100%)</option>
+          <option value="75">Comment on most posts (75%)</option>
+          <option value="50" selected>Comment on half of posts (50%)</option>
+          <option value="25">Comment on few posts (25%)</option>
+          <option value="10">Comment on very few posts (10%)</option>
+        </select>
+      </div>
+      
+      <div style="border-top: 1px solid #e0e0e0; padding-top: 10px; margin: 10px 0;">
+        <h4 style="margin: 0 0 10px 0; color: #0077b5;">Content Analysis Settings</h4>
+        
+        <div class="form-group">
+          <div style="display: flex; align-items: center;">
+            <input type="checkbox" id="analyzeImages" checked style="margin-right: 5px;">
+            <label for="analyzeImages">Analyze image content in posts (for better comments)</label>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <div style="display: flex; align-items: center;">
+            <input type="checkbox" id="analyzeVideos" style="margin-right: 5px;">
+            <label for="analyzeVideos">Analyze video content in posts (experimental)</label>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <div style="display: flex; align-items: center;">
+          <input type="checkbox" id="enableAutoCommenter" style="margin-right: 5px;">
+          <label for="enableAutoCommenter">Enable Auto-Commenting</label>
+        </div>
+      </div>
+      
+      <button id="saveAutoCommenterSettings" style="background-color: #0077b5; color: white; border: none; padding: 8px 15px; width: 100%; cursor: pointer; border-radius: 4px;">Save Settings</button>
+      
+      <div style="margin-top: 20px;">
+        <h4>Instructions:</h4>
+        <ol>
+          <li>Enter your OpenAI API key (create one at <a href="https://platform.openai.com/api-keys" target="_blank">openai.com</a>)</li>
+          <li>Add your signature to be included in comments</li>
+          <li>Customize the prompt if needed</li>
+          <li>Toggle the feature on/off on LinkedIn feed pages</li>
+        </ol>
+        <p><strong>Note:</strong> After saving settings, you'll see a control button on LinkedIn feed pages to enable/disable auto-commenting.</p>
+        
+        <div style="margin-top: 20px; text-align: center;">
+          <a href="comment-stats.html" class="btn" style="display: inline-block; background-color: #0077b5; color: white; text-decoration: none; padding: 8px 16px; border-radius: 4px;">View Comment Statistics</a>
+        </div>
+      </div>
+    </div>
         <!-- Suggestions will be inserted here -->
       </div>
     </div>
     
     <script src="popup.js"></script>
+    <script src="auto-commenter-settings.js"></script>
   </body>
 </html>
