@@ -18,26 +18,77 @@
     analyzeVideos: false, // Whether to analyze video content in posts
     debugMode: false
   };
+
+  const ENCRYPTION_PASSPHRASE = 'linkedin-auto-commenter';
+
+  async function getKeyMaterial() {
+    const enc = new TextEncoder();
+    return crypto.subtle.digest('SHA-256', enc.encode(ENCRYPTION_PASSPHRASE));
+  }
+
+  async function getKey() {
+    const keyMaterial = await getKeyMaterial();
+    return crypto.subtle.importKey(
+      'raw',
+      keyMaterial,
+      'AES-GCM',
+      false,
+      ['encrypt', 'decrypt']
+    );
+  }
+
+  async function encryptString(str) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await getKey();
+    const encoded = new TextEncoder().encode(str);
+    const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+    const cipherBytes = new Uint8Array(cipher);
+    const result = new Uint8Array(iv.length + cipherBytes.length);
+    result.set(iv);
+    result.set(cipherBytes, iv.length);
+    return btoa(String.fromCharCode(...result));
+  }
+
+  async function decryptString(str) {
+    try {
+      const data = Uint8Array.from(atob(str), c => c.charCodeAt(0));
+      const iv = data.slice(0, 12);
+      const cipher = data.slice(12);
+      const key = await getKey();
+      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
+      return new TextDecoder().decode(plain);
+    } catch (e) {
+      console.error('Failed to decrypt API key', e);
+      return '';
+    }
+  }
   
   // Load stored configuration
   function loadConfig() {
     chrome.storage.local.get(['autoCommenterConfig'], (result) => {
       if (result.autoCommenterConfig) {
-        config = {...config, ...result.autoCommenterConfig};
+        config = { ...config, ...result.autoCommenterConfig };
         console.log('Auto commenter config loaded:', config.enabled ? 'enabled' : 'disabled');
-        
+
         if (config.debugMode) {
           console.log('Auto commenter configuration:', JSON.stringify(config, null, 2));
         }
       }
     });
+
+    chrome.storage.sync.get(['autoCommenterKey'], async (res) => {
+      if (res.autoCommenterKey) {
+        config.apiKey = await decryptString(res.autoCommenterKey);
+      }
+    });
   }
   
-  // Save configuration
+  // Save configuration (without API key)
   function saveConfig() {
-    chrome.storage.local.set({ autoCommenterConfig: config }, () => {
+    const { apiKey, ...rest } = config;
+    chrome.storage.local.set({ autoCommenterConfig: rest }, () => {
       if (config.debugMode) {
-        console.log('Auto commenter config saved:', config);
+        console.log('Auto commenter config saved:', rest);
       }
     });
   }

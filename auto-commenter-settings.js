@@ -1,4 +1,42 @@
 // LinkedIn Auto Commenter Settings Handler
+const ENCRYPTION_PASSPHRASE = 'linkedin-auto-commenter';
+
+async function getKeyMaterial() {
+  const enc = new TextEncoder();
+  return crypto.subtle.digest('SHA-256', enc.encode(ENCRYPTION_PASSPHRASE));
+}
+
+async function getKey() {
+  const keyMaterial = await getKeyMaterial();
+  return crypto.subtle.importKey('raw', keyMaterial, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+
+async function encryptString(str) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await getKey();
+  const encoded = new TextEncoder().encode(str);
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+  const cipherBytes = new Uint8Array(cipher);
+  const result = new Uint8Array(iv.length + cipherBytes.length);
+  result.set(iv);
+  result.set(cipherBytes, iv.length);
+  return btoa(String.fromCharCode(...result));
+}
+
+async function decryptString(str) {
+  try {
+    const data = Uint8Array.from(atob(str), c => c.charCodeAt(0));
+    const iv = data.slice(0, 12);
+    const cipher = data.slice(12);
+    const key = await getKey();
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
+    return new TextDecoder().decode(plain);
+  } catch (e) {
+    console.error('Failed to decrypt API key', e);
+    return '';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Set up tab navigation
   setupTabs();
@@ -32,13 +70,12 @@ function setupTabs() {
 }
 
 // Load saved auto commenter settings
-function loadAutoCommenterSettings() {
-  chrome.storage.local.get(['autoCommenterConfig'], (result) => {
+async function loadAutoCommenterSettings() {
+  chrome.storage.sync.get(['autoCommenterConfig', 'autoCommenterKey'], async (result) => {
     if (result.autoCommenterConfig) {
       const config = result.autoCommenterConfig;
-      
+
       // Set form values
-      document.getElementById('apiKey').value = config.apiKey || '';
       document.getElementById('userSignature').value = config.userSignature || '';
       document.getElementById('commentPrompt').value = config.commentPrompt || 'Write a professional, thoughtful, and concise comment (maximum 100 words) in response to this LinkedIn post:';
       document.getElementById('modelSelect').value = config.model || 'gpt-4.1-nano-2025-04-14';
@@ -47,13 +84,18 @@ function loadAutoCommenterSettings() {
       document.getElementById('analyzeVideos').checked = config.analyzeVideos || false;
       document.getElementById('enableAutoCommenter').checked = config.enabled || false;
     }
+
+    if (result.autoCommenterKey) {
+      document.getElementById('apiKey').value = await decryptString(result.autoCommenterKey);
+    }
   });
 }
 
 // Save auto commenter settings
-function saveAutoCommenterSettings() {
+async function saveAutoCommenterSettings() {
+  const apiKey = document.getElementById('apiKey').value;
+  const encryptedKey = apiKey ? await encryptString(apiKey) : '';
   const config = {
-    apiKey: document.getElementById('apiKey').value,
     userSignature: document.getElementById('userSignature').value,
     commentPrompt: document.getElementById('commentPrompt').value,
     model: document.getElementById('modelSelect').value,
@@ -62,8 +104,8 @@ function saveAutoCommenterSettings() {
     analyzeVideos: document.getElementById('analyzeVideos').checked,
     enabled: document.getElementById('enableAutoCommenter').checked
   };
-  
-  chrome.storage.local.set({ autoCommenterConfig: config }, () => {
+
+  chrome.storage.sync.set({ autoCommenterConfig: config, autoCommenterKey: encryptedKey }, () => {
     alert('Settings saved!');
   });
 }
