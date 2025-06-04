@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Load auto commenter settings
   loadAutoCommenterSettings();
+
+  document.getElementById('apiKey').addEventListener('input', (e) => {
+    loadModelOptions(e.target.value, document.getElementById('modelSelect').value);
+  });
   
   // Add event listener for saving settings
   document.getElementById('saveAutoCommenterSettings').addEventListener('click', saveAutoCommenterSettings);
@@ -32,20 +36,54 @@ function setupTabs() {
 }
 
 // Load saved auto commenter settings
+async function loadModelOptions(apiKey, selected) {
+  const select = document.getElementById('modelSelect');
+  if (!select) return;
+  if (!apiKey) {
+    select.innerHTML = '<option value="gpt-3.5-turbo">gpt-3.5-turbo</option>';
+    return;
+  }
+  select.innerHTML = '<option>Loading...</option>';
+  try {
+    const res = await fetch('https://api.openai.com/v1/models', {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const models = data.data
+      .map(m => m.id)
+      .filter(id => id.startsWith('gpt-'))
+      .sort();
+    select.innerHTML = '';
+    models.forEach(id => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = id;
+      select.appendChild(opt);
+    });
+    if (selected) select.value = selected;
+  } catch (err) {
+    console.error('Failed to fetch models', err);
+    select.innerHTML = `<option value="${selected || 'gpt-3.5-turbo'}">${selected || 'gpt-3.5-turbo'}</option>`;
+  }
+}
+
 function loadAutoCommenterSettings() {
   chrome.storage.local.get(['autoCommenterConfig'], (result) => {
     if (result.autoCommenterConfig) {
       const config = result.autoCommenterConfig;
-      
-      // Set form values
+
       document.getElementById('apiKey').value = config.apiKey || '';
       document.getElementById('userSignature').value = config.userSignature || '';
       document.getElementById('commentPrompt').value = config.commentPrompt || 'Write a professional, thoughtful, and concise comment (maximum 100 words) in response to this LinkedIn post:';
-      document.getElementById('modelSelect').value = config.model || 'gpt-4.1-nano-2025-04-14';
       document.getElementById('commentFrequency').value = config.commentFrequency || '50';
       document.getElementById('analyzeImages').checked = config.analyzeImages !== false;
       document.getElementById('analyzeVideos').checked = config.analyzeVideos || false;
       document.getElementById('enableAutoCommenter').checked = config.enabled || false;
+
+      loadModelOptions(config.apiKey, config.model || 'gpt-3.5-turbo');
+    } else {
+      loadModelOptions('', 'gpt-3.5-turbo');
     }
   });
 }
