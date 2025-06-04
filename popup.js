@@ -4,6 +4,24 @@ let suggestedHashtags = [];
 let searchHistory = [];
 let isSearchInProgress = false;
 
+// Concurrency control for opening tabs
+const MAX_CONCURRENT_TABS = 5;
+let pendingHashtags = [];
+let activeTabCount = 0;
+
+function processNextHashtag() {
+  if (activeTabCount >= MAX_CONCURRENT_TABS) return;
+  const tag = pendingHashtags.shift();
+  if (!tag) return;
+
+  activeTabCount++;
+
+  chrome.tabs.create({
+    url: `https://www.linkedin.com/feed/hashtag/${encodeURIComponent(tag)}`,
+    active: false
+  });
+}
+
 // Load saved data when popup opens
 document.addEventListener('DOMContentLoaded', () => {
   loadSavedData();
@@ -151,53 +169,41 @@ document.getElementById("checkBtn").addEventListener("click", async () => {
   const loadingElement = document.getElementById("loading");
   const suggestionsElement = document.getElementById("suggestions");
   const suggestionsLoadingElement = document.getElementById("suggestionsLoading");
-  
+
   // Clear previous results
   resultsElement.innerHTML = "";
   suggestionsElement.innerHTML = "";
   hashtagData = [];
-  
+
   // Show loading indicators
   loadingElement.style.display = "block";
   suggestionsLoadingElement.style.display = "block";
-  
-  // Track hashtags we're checking and their original capitalization
-  const hashtagMap = new Map();
-  
-  // Track how many hashtags we're processing
-  const totalHashtags = hashtags.length;
-  let processedHashtags = 0;
-  
-  // Process each hashtag
+
+  // Initialize queue
+  pendingHashtags = [];
+  activeTabCount = 0;
+
   for (const tag of hashtags) {
-    // Skip empty tags
-    if (!tag) {
-      processedHashtags++;
-      continue;
-    }
-    
-    // Store original capitalization for display
-    hashtagMap.set(tag.toLowerCase(), tag);
-    
-    // Create a background tab to fetch the data
-    chrome.tabs.create({
-      url: `https://www.linkedin.com/feed/hashtag/${encodeURIComponent(tag)}`,
-      active: false // Keep the tab in the background
-    }, (tab) => {
-      // Create a row for this hashtag
-      const row = document.createElement("tr");
-      const hashtagCell = document.createElement("td");
-      const followersCell = document.createElement("td");
-      
-      // Set data attributes to help with matching
-      hashtagCell.textContent = `#${tag}`;
-      hashtagCell.dataset.hashtag = tag.toLowerCase();
-      followersCell.textContent = "Loading...";
-      
-      row.appendChild(hashtagCell);
-      row.appendChild(followersCell);
-      resultsElement.appendChild(row);
-    });
+    if (!tag) continue;
+    pendingHashtags.push(tag);
+
+    // Create a placeholder row for this hashtag
+    const row = document.createElement("tr");
+    const hashtagCell = document.createElement("td");
+    const followersCell = document.createElement("td");
+
+    hashtagCell.textContent = `#${tag}`;
+    hashtagCell.dataset.hashtag = tag.toLowerCase();
+    followersCell.textContent = "Loading...";
+
+    row.appendChild(hashtagCell);
+    row.appendChild(followersCell);
+    resultsElement.appendChild(row);
+  }
+
+  // Kick off processing
+  for (let i = 0; i < MAX_CONCURRENT_TABS; i++) {
+    processNextHashtag();
   }
 });
 
@@ -276,6 +282,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     if (sender.tab) {
       chrome.tabs.remove(sender.tab.id);
     }
+    activeTabCount = Math.max(0, activeTabCount - 1);
+    processNextHashtag();
     
     // Check if all results are in
     const allLoaded = Array.from(rows).every(row => 
@@ -306,6 +314,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     }
   } else if (message.type === "CLOSE_TAB" && sender.tab) {
     chrome.tabs.remove(sender.tab.id);
+    activeTabCount = Math.max(0, activeTabCount - 1);
+    processNextHashtag();
   }
 });
 
