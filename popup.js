@@ -637,6 +637,11 @@ function formatFollowerCount(count) {
   }
 }
 
+// Export functions for testing environments
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { parseFollowerCount, formatFollowerCount };
+}
+
 // Tab switching functionality
 document.addEventListener('DOMContentLoaded', () => {
   // Set up tab switching
