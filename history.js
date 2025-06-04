@@ -1,5 +1,6 @@
 // Load search history data when the page loads
 document.addEventListener('DOMContentLoaded', () => {
+  migrateHistoryIfNeeded();
   loadSearchHistory();
   
   // Set up event listeners
@@ -12,9 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Load search history from local storage
 function loadSearchHistory() {
-  chrome.storage.local.get(['detailedSearchHistory'], (result) => {
+  chrome.storage.local.get(['searchHistory', 'hashtagResults'], (result) => {
     const historyContainer = document.getElementById('historyContainer');
-    const detailedHistory = result.detailedSearchHistory || [];
+    const detailedHistory = result.searchHistory || [];
+    const results = result.hashtagResults || {};
     
     if (detailedHistory.length === 0) {
       historyContainer.innerHTML = `
@@ -68,13 +70,14 @@ function loadSearchHistory() {
             </thead>
             <tbody>
         `;
-        
+
         historyItem.hashtags.forEach(tag => {
-          const tagDate = tag.date ? new Date(tag.date).toLocaleDateString() : 'N/A';
+          const res = results[tag.toLowerCase()] || {};
+          const tagDate = res.lastChecked ? new Date(res.lastChecked).toLocaleDateString() : 'N/A';
           tableContent += `
             <tr>
-              <td>#${tag.hashtag}</td>
-              <td>${tag.followers || 'Not available'}</td>
+              <td>#${tag}</td>
+              <td>${res.followers || 'Not available'}</td>
               <td>${tagDate}</td>
             </tr>
           `;
@@ -96,11 +99,12 @@ function loadSearchHistory() {
             <h4>Suggested Hashtags:</h4>
             <div class="tags-container">
         `;
-        
+
         historyItem.suggestedHashtags.forEach(tag => {
+          const res = results[tag.toLowerCase()] || {};
           suggestionsContent += `
             <div class="suggested-tag">
-              #${tag.hashtag} <span class="follower-count">${tag.followers || ''}</span>
+              #${tag} <span class="follower-count">${res.followers || ''}</span>
             </div>
           `;
         });
@@ -133,8 +137,42 @@ function loadSearchHistory() {
 // Clear all history data
 function clearAllHistory() {
   if (confirm('Are you sure you want to clear all search history?')) {
-    chrome.storage.local.set({ 'detailedSearchHistory': [] }, () => {
-      loadSearchHistory(); // Reload the page with empty history
+    chrome.storage.local.set({ searchHistory: [], hashtagResults: {} }, () => {
+      loadSearchHistory();
     });
   }
+}
+
+// Convert legacy array-based history to new keyed format
+function migrateHistoryIfNeeded() {
+  chrome.storage.local.get(['historyMigrated', 'detailedSearchHistory', 'searchHistory', 'hashtagResults'], (data) => {
+    if (data.historyMigrated) return;
+
+    let history = data.searchHistory || [];
+    let results = data.hashtagResults || {};
+    const legacy = data.detailedSearchHistory || [];
+
+    legacy.forEach(item => {
+      const timestamp = item.timestamp || new Date().toISOString();
+      const hashtags = [];
+      if (Array.isArray(item.hashtags)) {
+        item.hashtags.forEach(tagObj => {
+          const name = (tagObj.hashtag || tagObj).toLowerCase();
+          hashtags.push(name);
+          results[name] = { followers: tagObj.followers || null, lastChecked: tagObj.date || timestamp };
+        });
+      }
+
+      const suggestions = (item.suggestedHashtags || []).map(s => (s.hashtag || s).toLowerCase());
+
+      history.push({ query: item.query, hashtags, timestamp, suggestedHashtags: suggestions });
+    });
+
+    chrome.storage.local.set({
+      searchHistory: history,
+      hashtagResults: results,
+      historyMigrated: true,
+      detailedSearchHistory: []
+    });
+  });
 }

@@ -28,7 +28,18 @@
     },
     {
       "matches": ["*://www.linkedin.com/feed/*", "*://www.linkedin.com/posts/*"],
-      "js": ["comment-stats.js", "engagement-tracker.js", "content-analyzer.js", "status-display.js", "selector-utils.js", "debug-selectors.js", "auto-commenter.js", "test-positioning.js"]
+      "js": [
+        "comment-stats.js",
+        "engagement-tracker.js",
+        "content-analyzer.js",
+        "status-display.js",
+        "selector-utils.js",
+        "debug-selectors.js",
+        "src/auto-commenter/api.js",
+        "src/auto-commenter/ui.js",
+        "src/auto-commenter/engine.js",
+        "test-positioning.js"
+      ]
     }
   ]
 }

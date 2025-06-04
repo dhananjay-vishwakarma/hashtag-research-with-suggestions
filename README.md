@@ -60,6 +60,30 @@ The extension uses multiple sophisticated methods to extract and analyze hashtag
 5. **Intelligent Fallback System**: Provides industry-relevant suggestions even when direct extraction fails
 6. **Local Storage**: Saves search history and results for persistent access across browser sessions
 
+### Storage Layout
+
+The extension stores data under two keys in Chrome's local storage:
+
+```
+hashtagResults = {
+  [hashtag]: {
+    followers: "1,234 followers",
+    lastChecked: "2024-05-01T12:00:00Z"
+  }
+}
+
+searchHistory = [
+  {
+    query: "tag1, tag2",
+    hashtags: ["tag1", "tag2"],
+    suggestedHashtags: ["related1", "related2"],
+    timestamp: "2024-05-01T12:00:00Z"
+  }
+]
+```
+
+Each search references hashtags by name. Follower counts and the last time a hashtag was checked are stored once in `hashtagResults`.
+
 ## Auto Commenter Setup
 
 The auto commenter feature requires an OpenAI API key to function:
@@ -73,7 +97,6 @@ The auto commenter feature requires an OpenAI API key to function:
 7. Configure visual content analysis options:
    - Image Analysis: Enable to improve comments on posts containing images
    - Video Analysis: Enable to generate better responses to video content (experimental)
-8. Click "Save Settings" to apply your configuration
 
 Once active on LinkedIn, you'll see a status icon (📊) positioned above the chat button in the bottom-right corner that shows real-time information about:
 - Posts being evaluated
@@ -152,3 +175,12 @@ Planned features for upcoming releases:
 - Added test-positioning.js script to verify UI elements are correctly positioned
 - Added window resize handling to maintain proper positioning in all scenarios
 - Added debug mode that can be enabled with: `window.autoCommenterStatus.debug(true)`
+## Running Tests
+
+Automated tests are written using [Jest](https://jestjs.io/). After installing dependencies, run:
+
+```bash
+npm test
+```
+
+This will execute the test suite located in the `tests/` directory.

@@ -5,7 +5,7 @@
     enabled: false,
     apiKey: '',
     userSignature: '',
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-4.1-nano-2025-04-14',
     commentPrompt: 'Write a professional, thoughtful, and concise comment (maximum 100 words) in response to this LinkedIn post:',
     maxTokens: 150,
     temperature: 0.7,
@@ -18,114 +18,28 @@
     analyzeVideos: false, // Whether to analyze video content in posts
     debugMode: false
   };
-
-  const ENCRYPTION_PASSPHRASE = 'linkedin-auto-commenter';
-
-  async function getKeyMaterial() {
-    const enc = new TextEncoder();
-    return crypto.subtle.digest('SHA-256', enc.encode(ENCRYPTION_PASSPHRASE));
-  }
-
-  async function getKey() {
-    const keyMaterial = await getKeyMaterial();
-    return crypto.subtle.importKey(
-      'raw',
-      keyMaterial,
-      'AES-GCM',
-      false,
-      ['encrypt', 'decrypt']
-    );
-  }
-
-  async function encryptString(str) {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await getKey();
-    const encoded = new TextEncoder().encode(str);
-    const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-    const cipherBytes = new Uint8Array(cipher);
-    const result = new Uint8Array(iv.length + cipherBytes.length);
-    result.set(iv);
-    result.set(cipherBytes, iv.length);
-    return btoa(String.fromCharCode(...result));
-  }
-
-  async function decryptString(str) {
-    try {
-      const data = Uint8Array.from(atob(str), c => c.charCodeAt(0));
-      const iv = data.slice(0, 12);
-      const cipher = data.slice(12);
-      const key = await getKey();
-      const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher);
-      return new TextDecoder().decode(plain);
-    } catch (e) {
-      console.error('Failed to decrypt API key', e);
-      return '';
-    }
-  }
   
   // Load stored configuration
   function loadConfig() {
     chrome.storage.local.get(['autoCommenterConfig'], (result) => {
       if (result.autoCommenterConfig) {
-        config = { ...config, ...result.autoCommenterConfig };
+        config = {...config, ...result.autoCommenterConfig};
         console.log('Auto commenter config loaded:', config.enabled ? 'enabled' : 'disabled');
-
+        
         if (config.debugMode) {
           console.log('Auto commenter configuration:', JSON.stringify(config, null, 2));
         }
       }
     });
-
-    chrome.storage.sync.get(['autoCommenterKey'], async (res) => {
-      if (res.autoCommenterKey) {
-        config.apiKey = await decryptString(res.autoCommenterKey);
-      }
-    });
   }
   
-  // Save configuration (without API key)
+  // Save configuration
   function saveConfig() {
-    const { apiKey, ...rest } = config;
-    chrome.storage.local.set({ autoCommenterConfig: rest }, () => {
+    chrome.storage.local.set({ autoCommenterConfig: config }, () => {
       if (config.debugMode) {
-        console.log('Auto commenter config saved:', rest);
+        console.log('Auto commenter config saved:', config);
       }
     });
-  }
-
-  async function loadModelOptions() {
-    const apiKey = document.getElementById('api-key-input').value || config.apiKey;
-    const select = document.getElementById('model-select');
-    if (!select) return;
-    if (!apiKey) {
-      select.innerHTML = `<option value="gpt-3.5-turbo">gpt-3.5-turbo</option>`;
-      return;
-    }
-    select.innerHTML = '<option>Loading...</option>';
-    try {
-      const res = await fetch('https://api.openai.com/v1/models', {
-        headers: { 'Authorization': `Bearer ${apiKey}` }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const models = data.data
-        .map(m => m.id)
-        .filter(id => id.startsWith('gpt-'))
-        .sort();
-      select.innerHTML = '';
-      models.forEach(id => {
-        const opt = document.createElement('option');
-        opt.value = id;
-        opt.textContent = id;
-        select.appendChild(opt);
-      });
-      if (config.model) {
-        select.value = config.model;
-      }
-    } catch (err) {
-      console.error('Failed to load models', err);
-      select.innerHTML = `<option value="${config.model}">${config.model}</option>`;
-    }
   }
   
   // Initialize UI elements
@@ -159,12 +73,6 @@
       <div style="margin-bottom: 10px;">
         <label style="display: block; margin-bottom: 5px;">Your Signature:</label>
         <input type="text" id="signature-input" style="width: 100%; padding: 5px;" placeholder="- John Doe, Digital Marketer">
-      </div>
-      <div style="margin-bottom: 10px;">
-        <label style="display: block; margin-bottom: 5px;">AI Model:</label>
-        <select id="model-select" style="width: 100%; padding: 5px;">
-          <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-        </select>
       </div>
       <div style="margin-bottom: 10px;">
         <label style="display: block; margin-bottom: 5px;">Comment Frequency:</label>
@@ -251,7 +159,6 @@
       // Update API key status when panel becomes visible
       if (isVisible) {
         setTimeout(updateApiKeyStatus, 100);
-        setTimeout(loadModelOptions, 100);
       }
     });
     
@@ -260,10 +167,7 @@
     });
     
     // Update API key status when input changes
-    document.getElementById('api-key-input').addEventListener('input', () => {
-      updateApiKeyStatus();
-      loadModelOptions();
-    });
+    document.getElementById('api-key-input').addEventListener('input', updateApiKeyStatus);
     
     document.getElementById('save-settings').addEventListener('click', async () => {
       const apiKeyInput = document.getElementById('api-key-input').value;
@@ -342,7 +246,6 @@
       // Save config
       config.apiKey = apiKeyInput;
       config.userSignature = document.getElementById('signature-input').value;
-      config.model = document.getElementById('model-select').value;
       config.commentFrequency = document.getElementById('comment-frequency').value;
       config.worthinessThreshold = document.getElementById('worthiness-threshold').value;
       config.keywordsOfInterest = document.getElementById('keywords-input').value;
@@ -360,7 +263,6 @@
     // Load saved settings into UI
     document.getElementById('api-key-input').value = config.apiKey || '';
     document.getElementById('signature-input').value = config.userSignature || '';
-    document.getElementById('model-select').value = config.model || 'gpt-3.5-turbo';
     document.getElementById('comment-frequency').value = config.commentFrequency || '50';
     document.getElementById('worthiness-threshold').value = config.worthinessThreshold || '60';
     document.getElementById('keywords-input').value = config.keywordsOfInterest || '';
@@ -371,10 +273,9 @@
     
     // Create test button for quick single post testing
     createTestButton();
-
+    
     // Add API key status indicator to settings panel
     updateApiKeyStatus();
-    loadModelOptions();
   }
   
   // Create test button for quick single post testing

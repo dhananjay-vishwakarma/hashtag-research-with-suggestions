@@ -2,10 +2,30 @@
 let hashtagData = [];
 let suggestedHashtags = [];
 let searchHistory = [];
+let hashtagResults = {};
 let isSearchInProgress = false;
+
+// Concurrency control for opening tabs
+const MAX_CONCURRENT_TABS = 5;
+let pendingHashtags = [];
+let activeTabCount = 0;
+
+function processNextHashtag() {
+  if (activeTabCount >= MAX_CONCURRENT_TABS) return;
+  const tag = pendingHashtags.shift();
+  if (!tag) return;
+
+  activeTabCount++;
+
+  chrome.tabs.create({
+    url: `https://www.linkedin.com/feed/hashtag/${encodeURIComponent(tag)}`,
+    active: false
+  });
+}
 
 // Load saved data when popup opens
 document.addEventListener('DOMContentLoaded', () => {
+  migrateHistoryIfNeeded();
   loadSavedData();
   
   // Add history button navigation
@@ -16,10 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Load data from local storage
 function loadSavedData() {
-  chrome.storage.local.get(['hashtagData', 'suggestedHashtags', 'searchHistory'], (result) => {
+  chrome.storage.local.get(['hashtagData', 'suggestedHashtags', 'searchHistory', 'hashtagResults'], (result) => {
     if (result.hashtagData) hashtagData = result.hashtagData;
     if (result.suggestedHashtags) suggestedHashtags = result.suggestedHashtags;
     if (result.searchHistory) searchHistory = result.searchHistory;
+    if (result.hashtagResults) hashtagResults = result.hashtagResults;
     
     // If we have hashtag data, also display the results and suggestions
     if (hashtagData.length > 0) {
@@ -34,7 +55,8 @@ function saveDataToLocalStorage() {
   chrome.storage.local.set({
     hashtagData: hashtagData,
     suggestedHashtags: suggestedHashtags,
-    searchHistory: searchHistory
+    searchHistory: searchHistory,
+    hashtagResults: hashtagResults
   }, () => {
     console.log('Data saved to local storage');
   });
@@ -42,38 +64,68 @@ function saveDataToLocalStorage() {
 
 // Save detailed search history with hashtags, dates, and suggestions
 function saveDetailedHistory(query, hashtags) {
-  chrome.storage.local.get(['detailedSearchHistory'], (result) => {
-    let detailedHistory = result.detailedSearchHistory || [];
-    
-    // Create new history item with current date and hashtag data
+  chrome.storage.local.get(['searchHistory', 'hashtagResults'], (result) => {
+    let history = result.searchHistory || [];
+    let results = result.hashtagResults || {};
+
+    const timestamp = new Date().toISOString();
+
+    hashtags.forEach(tag => {
+      const matchingData = hashtagData.find(h => h.hashtag.toLowerCase() === tag.toLowerCase());
+      results[tag.toLowerCase()] = {
+        followers: matchingData ? matchingData.followers : null,
+        lastChecked: timestamp
+      };
+    });
+
     const historyItem = {
       query: query,
-      timestamp: new Date().toISOString(),
-      hashtags: hashtags.map(hash => {
-        const matchingData = hashtagData.find(h => h.hashtag.toLowerCase() === hash.toLowerCase());
-        return {
-          hashtag: hash,
-          followers: matchingData ? matchingData.followers : null,
-          date: new Date().toISOString()
-        };
-      }),
-      suggestedHashtags: suggestedHashtags.slice(0, 15) // Store top 15 suggestions
+      hashtags: hashtags.map(h => h.toLowerCase()),
+      timestamp: timestamp,
+      suggestedHashtags: suggestedHashtags.slice(0, 15).map(s => (s.hashtag || s).toLowerCase())
     };
-    
-    // Add to history (avoid duplicates with same timestamp)
-    if (!detailedHistory.some(item => item.timestamp === historyItem.timestamp)) {
-      detailedHistory.unshift(historyItem);
-      
-      // Limit history to 50 entries
-      if (detailedHistory.length > 50) {
-        detailedHistory = detailedHistory.slice(0, 50);
+
+    history.unshift(historyItem);
+    if (history.length > 50) history = history.slice(0, 50);
+
+    chrome.storage.local.set({ searchHistory: history, hashtagResults: results }, () => {
+      console.log('History saved');
+    });
+  });
+}
+
+// Convert old array-based history to the new keyed format
+function migrateHistoryIfNeeded() {
+  chrome.storage.local.get(['historyMigrated', 'detailedSearchHistory', 'searchHistory', 'hashtagResults'], (data) => {
+    if (data.historyMigrated) return;
+
+    let history = data.searchHistory || [];
+    let results = data.hashtagResults || {};
+
+    const legacy = data.detailedSearchHistory || [];
+    legacy.forEach(item => {
+      const timestamp = item.timestamp || new Date().toISOString();
+      const hashtags = [];
+
+      if (Array.isArray(item.hashtags)) {
+        item.hashtags.forEach(tagObj => {
+          const name = (tagObj.hashtag || tagObj).toLowerCase();
+          hashtags.push(name);
+          results[name] = { followers: tagObj.followers || null, lastChecked: tagObj.date || timestamp };
+        });
       }
-      
-      // Save updated history
-      chrome.storage.local.set({ 'detailedSearchHistory': detailedHistory }, () => {
-        console.log('Detailed history saved');
-      });
-    }
+
+      const suggestions = (item.suggestedHashtags || []).map(s => (s.hashtag || s).toLowerCase());
+
+      history.push({ query: item.query, hashtags, timestamp, suggestedHashtags: suggestions });
+    });
+
+    chrome.storage.local.set({
+      searchHistory: history,
+      hashtagResults: results,
+      historyMigrated: true,
+      detailedSearchHistory: []
+    });
   });
 }
 
@@ -133,71 +185,47 @@ document.getElementById("checkBtn").addEventListener("click", async () => {
     }
   }, 30000); // 30 seconds timeout
   
-  // Add search to history
-  const searchItem = {
-    query: input,
-    hashtags: hashtags,
-    timestamp: new Date().toISOString()
-  };
-  
-  // Add to history (avoid duplicates)
-  if (!searchHistory.some(item => item.query === input)) {
-    searchHistory.unshift(searchItem); // Add to beginning of array
-    if (searchHistory.length > 20) searchHistory.pop(); // Limit history to 20 entries
-    saveDataToLocalStorage();
-  }
+
   
   const resultsElement = document.getElementById("results");
   const loadingElement = document.getElementById("loading");
   const suggestionsElement = document.getElementById("suggestions");
   const suggestionsLoadingElement = document.getElementById("suggestionsLoading");
-  
+
   // Clear previous results
   resultsElement.innerHTML = "";
   suggestionsElement.innerHTML = "";
   hashtagData = [];
-  
+
   // Show loading indicators
   loadingElement.style.display = "block";
   suggestionsLoadingElement.style.display = "block";
-  
-  // Track hashtags we're checking and their original capitalization
-  const hashtagMap = new Map();
-  
-  // Track how many hashtags we're processing
-  const totalHashtags = hashtags.length;
-  let processedHashtags = 0;
-  
-  // Process each hashtag
+
+  // Initialize queue
+  pendingHashtags = [];
+  activeTabCount = 0;
+
   for (const tag of hashtags) {
-    // Skip empty tags
-    if (!tag) {
-      processedHashtags++;
-      continue;
-    }
-    
-    // Store original capitalization for display
-    hashtagMap.set(tag.toLowerCase(), tag);
-    
-    // Create a background tab to fetch the data
-    chrome.tabs.create({
-      url: `https://www.linkedin.com/feed/hashtag/${encodeURIComponent(tag)}`,
-      active: false // Keep the tab in the background
-    }, (tab) => {
-      // Create a row for this hashtag
-      const row = document.createElement("tr");
-      const hashtagCell = document.createElement("td");
-      const followersCell = document.createElement("td");
-      
-      // Set data attributes to help with matching
-      hashtagCell.textContent = `#${tag}`;
-      hashtagCell.dataset.hashtag = tag.toLowerCase();
-      followersCell.textContent = "Loading...";
-      
-      row.appendChild(hashtagCell);
-      row.appendChild(followersCell);
-      resultsElement.appendChild(row);
-    });
+    if (!tag) continue;
+    pendingHashtags.push(tag);
+
+    // Create a placeholder row for this hashtag
+    const row = document.createElement("tr");
+    const hashtagCell = document.createElement("td");
+    const followersCell = document.createElement("td");
+
+    hashtagCell.textContent = `#${tag}`;
+    hashtagCell.dataset.hashtag = tag.toLowerCase();
+    followersCell.textContent = "Loading...";
+
+    row.appendChild(hashtagCell);
+    row.appendChild(followersCell);
+    resultsElement.appendChild(row);
+  }
+
+  // Kick off processing
+  for (let i = 0; i < MAX_CONCURRENT_TABS; i++) {
+    processNextHashtag();
   }
 });
 
@@ -263,6 +291,12 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         relatedHashtags: message.relatedHashtags || [],
         date: new Date().toISOString()
       });
+
+      // Update persistent results
+      hashtagResults[receivedHashtag] = {
+        followers: message.followers,
+        lastChecked: new Date().toISOString()
+      };
       
       console.log(`Received ${message.relatedHashtags?.length || 0} related hashtags for #${receivedHashtag}`);
       
@@ -276,6 +310,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     if (sender.tab) {
       chrome.tabs.remove(sender.tab.id);
     }
+    activeTabCount = Math.max(0, activeTabCount - 1);
+    processNextHashtag();
     
     // Check if all results are in
     const allLoaded = Array.from(rows).every(row => 
@@ -306,6 +342,8 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     }
   } else if (message.type === "CLOSE_TAB" && sender.tab) {
     chrome.tabs.remove(sender.tab.id);
+    activeTabCount = Math.max(0, activeTabCount - 1);
+    processNextHashtag();
   }
 });
 
@@ -635,6 +673,11 @@ function formatFollowerCount(count) {
   } else {
     return `${count} followers`;
   }
+}
+
+// Export functions for testing environments
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { parseFollowerCount, formatFollowerCount };
 }
 
 // Tab switching functionality
