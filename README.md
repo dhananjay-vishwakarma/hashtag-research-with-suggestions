@@ -73,6 +73,7 @@ The auto commenter feature requires an OpenAI API key to function:
    - Image Analysis: Enable to improve comments on posts containing images
    - Video Analysis: Enable to generate better responses to video content (experimental)
 7. Click "Save Settings" to apply your configuration
+8. Your API key is stored encrypted in Chrome sync storage and only kept in memory when commenting
 
 Once active on LinkedIn, you'll see a status icon (📊) positioned above the chat button in the bottom-right corner that shows real-time information about:
 - Posts being evaluated
