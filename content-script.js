@@ -1,4 +1,29 @@
 // This script runs on LinkedIn hashtag pages to extract follower counts and related hashtags
+
+// Parse follower counts respecting locale-specific separators
+function parseLocalizedFollower(text) {
+  if (!text) return null;
+  const nf = new Intl.NumberFormat();
+  const parts = nf.formatToParts(1000.1);
+  const group = parts.find(p => p.type === 'group')?.value || ',';
+  const decimal = parts.find(p => p.type === 'decimal')?.value || '.';
+  let normalized = text
+    .replace(new RegExp(`\\${group}`, 'g'), '')
+    .replace(new RegExp(`\\${decimal}`, 'g'), '.');
+  const match = normalized.match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  let num = parseFloat(match[1]);
+  if (/k/i.test(text)) num *= 1000;
+  if (/m/i.test(text)) num *= 1000000;
+  return Math.round(num);
+}
+
+// Format follower count back into a display string
+function formatFollowerCountIntl(count) {
+  if (typeof count !== 'number' || isNaN(count)) return null;
+  return `${new Intl.NumberFormat().format(count)} followers`;
+}
+
 (function() {
   // Wait longer for the page to fully load and for dynamic content
   setTimeout(() => {
@@ -21,22 +46,44 @@
       
       // Initialize follower count variable
       let followerCount = null;
-      
+
+      // Look for known follower count elements before falling back to regex
+      const followerSelectors = [
+        'span[data-test-id*="followers"]', // dedicated follower count spans
+        '.hashtag-info-container span.t-12' // small follower count text in sidebar
+      ];
+
+      for (const sel of followerSelectors) {
+        const el = document.querySelector(sel);
+        if (el && /\d/.test(el.textContent)) {
+          const num = parseLocalizedFollower(el.textContent);
+          if (num) {
+            followerCount = formatFollowerCountIntl(num);
+            break;
+          }
+        }
+      }
+
       // APPROACH 1: Look for the specific pattern "hashtag#name X,XXX followers"
-      const hashtagFollowerRegex = new RegExp(`hashtag#${hashtag}\\s+(\\d[\\d,.]*)\\s+followers`, 'i');
-      const hashtagMatch = pageText.match(hashtagFollowerRegex);
-      
-      if (hashtagMatch && hashtagMatch[1]) {
-        followerCount = hashtagMatch[1] + " followers";
-        console.log("Found follower count with hashtag pattern:", followerCount);
-      } else {
+      if (!followerCount) {
+        const hashtagFollowerRegex = new RegExp(`hashtag#${hashtag}\\s+(\\d[\\d,.]*)\\s+followers`, 'i');
+        const hashtagMatch = pageText.match(hashtagFollowerRegex);
+
+        if (hashtagMatch && hashtagMatch[1]) {
+          const num = parseLocalizedFollower(hashtagMatch[1]);
+          if (num) followerCount = formatFollowerCountIntl(num);
+          console.log("Found follower count with hashtag pattern:", followerCount);
+        }
+      }
+
+      if (!followerCount) {
         // APPROACH 2: Look for any "X,XXX followers" pattern
         const followerRegex = /(\d[\d,.]+)\s+followers?/gi;
         const allMatches = Array.from(pageText.matchAll(followerRegex));
-        
+
         if (allMatches && allMatches.length > 0) {
-          // Use the first match
-          followerCount = allMatches[0][1] + " followers";
+          const num = parseLocalizedFollower(allMatches[0][1]);
+          if (num) followerCount = formatFollowerCountIntl(num);
           console.log("Found follower count with generic pattern:", followerCount);
         } else {
           // APPROACH 3: Split the text into lines and look for follower patterns line by line
@@ -45,7 +92,8 @@
             if (line.includes("followers") && line.match(/\d/)) {
               const match = line.match(/(\d[\d,.]+)\s+followers?/i);
               if (match && match[1]) {
-                followerCount = match[1] + " followers";
+                const num = parseLocalizedFollower(match[1]);
+                if (num) followerCount = formatFollowerCountIntl(num);
                 console.log("Found follower count in line:", followerCount);
                 break;
               }
@@ -62,7 +110,8 @@
         // Try to find the pattern in the HTML
         const htmlMatch = htmlContent.match(/(\d[\d,.]+)\s+followers?/i);
         if (htmlMatch && htmlMatch[1]) {
-          followerCount = htmlMatch[1] + " followers";
+          const num = parseLocalizedFollower(htmlMatch[1]);
+          if (num) followerCount = formatFollowerCountIntl(num);
           console.log("Found follower count in HTML:", followerCount);
         }
       }
@@ -80,12 +129,13 @@
         for (const el of possibleElements) {
           if (el && el.textContent && el.textContent.includes('follower')) {
             const text = el.textContent.trim();
-            const match = text.match(/(\d[\d,.]+)\s+followers?/i);
-            if (match && match[1]) {
-              followerCount = match[1] + " followers";
-              console.log("Found follower count in element:", followerCount);
-              break;
-            }
+              const match = text.match(/(\d[\d,.]+)\s+followers?/i);
+              if (match && match[1]) {
+                const num = parseLocalizedFollower(match[1]);
+                if (num) followerCount = formatFollowerCountIntl(num);
+                console.log("Found follower count in element:", followerCount);
+                break;
+              }
           }
         }
       }
@@ -95,9 +145,10 @@
         // Look for the most specific match in the page text
         const lastAttemptRegex = /(\d[\d,.]+)\s+followers?/i;
         const lastMatch = pageText.match(lastAttemptRegex);
-        
+
         if (lastMatch && lastMatch[1]) {
-          followerCount = lastMatch[1] + " followers";
+          const num = parseLocalizedFollower(lastMatch[1]);
+          if (num) followerCount = formatFollowerCountIntl(num);
         }
       }
       
@@ -411,41 +462,60 @@ function extractHashtagsFromSidebar(currentHashtag) {
             if (tagMatch && tagMatch[1]) {
               const tagName = decodeURIComponent(tagMatch[1]).toLowerCase();
               
-              if (tagName !== currentHashtag) {
-                // Try to extract follower count from nearby text
-                let followerCount = null;
-                
-                // Check if follower count is in the link text
-                const linkText = link.textContent || '';
-                const followersInLink = linkText.match(/(\d[\d,.]+)\s+followers?/i);
-                
-                if (followersInLink) {
-                  followerCount = followersInLink[1] + " followers";
-                } else {
-                  // Check parent and sibling elements for follower counts
-                  const parentElement = link.parentElement;
-                  if (parentElement) {
-                    const parentText = parentElement.textContent;
-                    const followersInParent = parentText.match(/(\d[\d,.]+)\s+followers?/i);
-                    
-                    if (followersInParent) {
-                      followerCount = followersInParent[1] + " followers";
+                if (tagName !== currentHashtag) {
+                  // Try to extract follower count from nearby text
+                  let followerCount = null;
+
+                  // First check for follower count elements commonly used by LinkedIn
+                  const followerSelectors = [
+                    'span[data-test-id*="followers"]',
+                    '.hashtag-info-container span.t-12'
+                  ];
+                  for (const sel of followerSelectors) {
+                    const el = link.closest('div')?.querySelector(sel) || element.querySelector(sel);
+                    if (el && /\d/.test(el.textContent)) {
+                      const num = parseLocalizedFollower(el.textContent);
+                      if (num) {
+                        followerCount = formatFollowerCountIntl(num);
+                        break;
+                      }
+                    }
+                  }
+
+                  // Fallback to scanning text if dedicated elements weren't found
+                  if (!followerCount) {
+                    const linkText = link.textContent || '';
+                    const followersInLink = linkText.match(/(\d[\d,.]+)\s+followers?/i);
+
+                    if (followersInLink) {
+                      const num = parseLocalizedFollower(followersInLink[1]);
+                      if (num) followerCount = formatFollowerCountIntl(num);
                     } else {
-                      // Check siblings
-                      const siblings = parentElement.children;
-                      for (let i = 0; i < siblings.length; i++) {
-                        const siblingText = siblings[i].textContent;
-                        if (siblingText && siblingText.includes('follower')) {
-                          const followerMatch = siblingText.match(/(\d[\d,.]+)\s+followers?/i);
-                          if (followerMatch) {
-                            followerCount = followerMatch[1] + " followers";
-                            break;
+                      const parentElement = link.parentElement;
+                      if (parentElement) {
+                        const parentText = parentElement.textContent;
+                        const followersInParent = parentText.match(/(\d[\d,.]+)\s+followers?/i);
+
+                        if (followersInParent) {
+                          const num = parseLocalizedFollower(followersInParent[1]);
+                          if (num) followerCount = formatFollowerCountIntl(num);
+                        } else {
+                          const siblings = parentElement.children;
+                          for (let i = 0; i < siblings.length; i++) {
+                            const siblingText = siblings[i].textContent;
+                            if (siblingText && siblingText.includes('follower')) {
+                              const followerMatch = siblingText.match(/(\d[\d,.]+)\s+followers?/i);
+                              if (followerMatch) {
+                                const num = parseLocalizedFollower(followerMatch[1]);
+                                if (num) followerCount = formatFollowerCountIntl(num);
+                                break;
+                              }
+                            }
                           }
                         }
                       }
                     }
                   }
-                }
                 
                 relatedTags.push({
                   hashtag: tagName,
