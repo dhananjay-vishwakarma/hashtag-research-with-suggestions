@@ -2,6 +2,7 @@
 let hashtagData = [];
 let suggestedHashtags = [];
 let searchHistory = [];
+let hashtagResults = {};
 let isSearchInProgress = false;
 
 // Concurrency control for opening tabs
@@ -24,6 +25,7 @@ function processNextHashtag() {
 
 // Load saved data when popup opens
 document.addEventListener('DOMContentLoaded', () => {
+  migrateHistoryIfNeeded();
   loadSavedData();
   
   // Add history button navigation
@@ -34,10 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Load data from local storage
 function loadSavedData() {
-  chrome.storage.local.get(['hashtagData', 'suggestedHashtags', 'searchHistory'], (result) => {
+  chrome.storage.local.get(['hashtagData', 'suggestedHashtags', 'searchHistory', 'hashtagResults'], (result) => {
     if (result.hashtagData) hashtagData = result.hashtagData;
     if (result.suggestedHashtags) suggestedHashtags = result.suggestedHashtags;
     if (result.searchHistory) searchHistory = result.searchHistory;
+    if (result.hashtagResults) hashtagResults = result.hashtagResults;
     
     // If we have hashtag data, also display the results and suggestions
     if (hashtagData.length > 0) {
@@ -52,7 +55,8 @@ function saveDataToLocalStorage() {
   chrome.storage.local.set({
     hashtagData: hashtagData,
     suggestedHashtags: suggestedHashtags,
-    searchHistory: searchHistory
+    searchHistory: searchHistory,
+    hashtagResults: hashtagResults
   }, () => {
     console.log('Data saved to local storage');
   });
@@ -60,38 +64,68 @@ function saveDataToLocalStorage() {
 
 // Save detailed search history with hashtags, dates, and suggestions
 function saveDetailedHistory(query, hashtags) {
-  chrome.storage.local.get(['detailedSearchHistory'], (result) => {
-    let detailedHistory = result.detailedSearchHistory || [];
-    
-    // Create new history item with current date and hashtag data
+  chrome.storage.local.get(['searchHistory', 'hashtagResults'], (result) => {
+    let history = result.searchHistory || [];
+    let results = result.hashtagResults || {};
+
+    const timestamp = new Date().toISOString();
+
+    hashtags.forEach(tag => {
+      const matchingData = hashtagData.find(h => h.hashtag.toLowerCase() === tag.toLowerCase());
+      results[tag.toLowerCase()] = {
+        followers: matchingData ? matchingData.followers : null,
+        lastChecked: timestamp
+      };
+    });
+
     const historyItem = {
       query: query,
-      timestamp: new Date().toISOString(),
-      hashtags: hashtags.map(hash => {
-        const matchingData = hashtagData.find(h => h.hashtag.toLowerCase() === hash.toLowerCase());
-        return {
-          hashtag: hash,
-          followers: matchingData ? matchingData.followers : null,
-          date: new Date().toISOString()
-        };
-      }),
-      suggestedHashtags: suggestedHashtags.slice(0, 15) // Store top 15 suggestions
+      hashtags: hashtags.map(h => h.toLowerCase()),
+      timestamp: timestamp,
+      suggestedHashtags: suggestedHashtags.slice(0, 15).map(s => (s.hashtag || s).toLowerCase())
     };
-    
-    // Add to history (avoid duplicates with same timestamp)
-    if (!detailedHistory.some(item => item.timestamp === historyItem.timestamp)) {
-      detailedHistory.unshift(historyItem);
-      
-      // Limit history to 50 entries
-      if (detailedHistory.length > 50) {
-        detailedHistory = detailedHistory.slice(0, 50);
+
+    history.unshift(historyItem);
+    if (history.length > 50) history = history.slice(0, 50);
+
+    chrome.storage.local.set({ searchHistory: history, hashtagResults: results }, () => {
+      console.log('History saved');
+    });
+  });
+}
+
+// Convert old array-based history to the new keyed format
+function migrateHistoryIfNeeded() {
+  chrome.storage.local.get(['historyMigrated', 'detailedSearchHistory', 'searchHistory', 'hashtagResults'], (data) => {
+    if (data.historyMigrated) return;
+
+    let history = data.searchHistory || [];
+    let results = data.hashtagResults || {};
+
+    const legacy = data.detailedSearchHistory || [];
+    legacy.forEach(item => {
+      const timestamp = item.timestamp || new Date().toISOString();
+      const hashtags = [];
+
+      if (Array.isArray(item.hashtags)) {
+        item.hashtags.forEach(tagObj => {
+          const name = (tagObj.hashtag || tagObj).toLowerCase();
+          hashtags.push(name);
+          results[name] = { followers: tagObj.followers || null, lastChecked: tagObj.date || timestamp };
+        });
       }
-      
-      // Save updated history
-      chrome.storage.local.set({ 'detailedSearchHistory': detailedHistory }, () => {
-        console.log('Detailed history saved');
-      });
-    }
+
+      const suggestions = (item.suggestedHashtags || []).map(s => (s.hashtag || s).toLowerCase());
+
+      history.push({ query: item.query, hashtags, timestamp, suggestedHashtags: suggestions });
+    });
+
+    chrome.storage.local.set({
+      searchHistory: history,
+      hashtagResults: results,
+      historyMigrated: true,
+      detailedSearchHistory: []
+    });
   });
 }
 
@@ -151,19 +185,7 @@ document.getElementById("checkBtn").addEventListener("click", async () => {
     }
   }, 30000); // 30 seconds timeout
   
-  // Add search to history
-  const searchItem = {
-    query: input,
-    hashtags: hashtags,
-    timestamp: new Date().toISOString()
-  };
-  
-  // Add to history (avoid duplicates)
-  if (!searchHistory.some(item => item.query === input)) {
-    searchHistory.unshift(searchItem); // Add to beginning of array
-    if (searchHistory.length > 20) searchHistory.pop(); // Limit history to 20 entries
-    saveDataToLocalStorage();
-  }
+
   
   const resultsElement = document.getElementById("results");
   const loadingElement = document.getElementById("loading");
@@ -269,6 +291,12 @@ chrome.runtime.onMessage.addListener((message, sender) => {
         relatedHashtags: message.relatedHashtags || [],
         date: new Date().toISOString()
       });
+
+      // Update persistent results
+      hashtagResults[receivedHashtag] = {
+        followers: message.followers,
+        lastChecked: new Date().toISOString()
+      };
       
       console.log(`Received ${message.relatedHashtags?.length || 0} related hashtags for #${receivedHashtag}`);
       
