@@ -151,3 +151,12 @@ Planned features for upcoming releases:
 - Added test-positioning.js script to verify UI elements are correctly positioned
 - Added window resize handling to maintain proper positioning in all scenarios
 - Added debug mode that can be enabled with: `window.autoCommenterStatus.debug(true)`
+## Running Tests
+
+Automated tests are written using [Jest](https://jestjs.io/). After installing dependencies, run:
+
+```bash
+npm test
+```
+
+This will execute the test suite located in the `tests/` directory.

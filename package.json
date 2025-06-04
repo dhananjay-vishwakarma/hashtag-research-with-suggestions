@@ -1,0 +1,13 @@
+{
+  "name": "hashtag-research-with-suggestions",
+  "version": "1.0.0",
+  "description": "![Extension Logo](ext-logo.png)",
+  "main": "auto-commenter-settings.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
