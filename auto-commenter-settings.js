@@ -43,6 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Load auto commenter settings
   loadAutoCommenterSettings();
+
+  document.getElementById('apiKey').addEventListener('input', (e) => {
+    loadModelOptions(e.target.value, document.getElementById('modelSelect').value);
+  });
   
   // Add event listener for saving settings
   document.getElementById('saveAutoCommenterSettings').addEventListener('click', saveAutoCommenterSettings);
@@ -70,19 +74,17 @@ function setupTabs() {
 }
 
 // Load saved auto commenter settings
-async function loadAutoCommenterSettings() {
-  chrome.storage.sync.get(['autoCommenterConfig', 'autoCommenterKey'], async (result) => {
-    if (result.autoCommenterConfig) {
-      const config = result.autoCommenterConfig;
 
-      // Set form values
       document.getElementById('userSignature').value = config.userSignature || '';
       document.getElementById('commentPrompt').value = config.commentPrompt || 'Write a professional, thoughtful, and concise comment (maximum 100 words) in response to this LinkedIn post:';
-      document.getElementById('modelSelect').value = config.model || 'gpt-4.1-nano-2025-04-14';
       document.getElementById('commentFrequency').value = config.commentFrequency || '50';
       document.getElementById('analyzeImages').checked = config.analyzeImages !== false;
       document.getElementById('analyzeVideos').checked = config.analyzeVideos || false;
       document.getElementById('enableAutoCommenter').checked = config.enabled || false;
+
+      loadModelOptions(config.apiKey, config.model || 'gpt-3.5-turbo');
+    } else {
+      loadModelOptions('', 'gpt-3.5-turbo');
     }
 
     if (result.autoCommenterKey) {

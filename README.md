@@ -22,7 +22,7 @@ LinkedIn Assistant is a powerful Chrome extension that helps content creators, m
 
 - **Intelligent Engagement**: Automatically generates and posts thoughtful comments on LinkedIn posts
 - **Custom Signature**: Adds your personal signature to each comment for brand recognition
-- **ChatGPT Integration**: Uses OpenAI's powerful models to create relevant, context-aware responses
+- **ChatGPT Integration**: Uses OpenAI's latest models (selectable in settings) to create relevant, context-aware responses
 - **Comment Frequency Control**: Choose how often the AI should comment on posts
 - **Statistics Tracking**: Monitor your commenting activity with detailed statistics
 - **User-Friendly Interface**: Simple controls to enable/disable and customize the auto-commenter
@@ -92,12 +92,11 @@ The auto commenter feature requires an OpenAI API key to function:
 2. In the extension popup, click on the "Auto Commenter" tab
 3. Enter your API key in the designated field
 4. Customize your signature that will be added to each comment
-5. Adjust the comment frequency to control how often the AI comments on posts
-6. Configure visual content analysis options:
+5. Choose the ChatGPT model from the dropdown (models are loaded from your OpenAI account)
+6. Adjust the comment frequency to control how often the AI comments on posts
+7. Configure visual content analysis options:
    - Image Analysis: Enable to improve comments on posts containing images
    - Video Analysis: Enable to generate better responses to video content (experimental)
-7. Click "Save Settings" to apply your configuration
-8. Your API key is stored encrypted in Chrome sync storage and only kept in memory when commenting
 
 Once active on LinkedIn, you'll see a status icon (📊) positioned above the chat button in the bottom-right corner that shows real-time information about:
 - Posts being evaluated
